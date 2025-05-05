@@ -1,6 +1,54 @@
+from enum import Enum
 from pydantic import BaseModel, EmailStr, HttpUrl
 from typing import Optional, List
 from datetime import datetime
+
+#ENUMS
+class StatusEnum(str, Enum):
+    Open = "OPEN"
+    Closed = "CLOSED"
+    Processing = "PROCESSING"
+    Resolved = "RESOLVED"
+
+class LevelEnum(str, Enum):
+    Issue = "ISSUE"
+    Grievance = "GRIEVANCE"
+    Dispute = "DISPUTE"
+
+class ActorTypeEnum(str, Enum):
+    Interfacing_NP = "INTERFACING_NP"
+    Counterparty_NP = "COUNTERPARTY_NP"
+    Cascaded_NP = "CASCADED_NP"
+    Provider = "PROVIDER"
+    Customer = "CUSTOMER"
+    Agent = "AGENT"
+    Interfacing_NP_GRO = "INTERFACING_NP_GRO"
+    Counterparty_NP_GRO = "COUNTERPARTY_NP_GRO"
+    Cascaded_NP_GRO = "CASCADED_NP_GRO"
+
+class ActionDescriptionCodeEnum(str, Enum):
+    Open = "OPEN"
+    Closed = "CLOSED"
+    Processing = "PROCESSING"
+    Resolved = "RESOLVED"
+    Info_Requested = "INFO_REQUESTED"
+    Info_Provided = "INFO_PROVIDED"
+    Info_Not_Available = "INFO_NOT_AVAILABLE"
+    Resolution_Proposed = "RESOLUTION_PROPOSED"
+    Resolution_Cascaded = "RESOLUTION_CASCADED"
+    Resolution_Accepted = "RESOLUTION_ACCEPTED"
+    Resolution_Rejected = "RESOLUTION_REJECTED"
+    Escalated = "ESCALATED"
+
+class ResolutionDescriptionCodeEnum(str, Enum):
+    Refund = "REFUND"
+    Return = "RETURN"
+    Replacement = "REPLACEMENT"
+    No_Action = "NO_ACTION"
+    Cancel = "CANCEL"
+    Parent = "PARENT"
+    Reconciled = "RECONCILED"
+    Not_Reconciled = "NOT_RECONCILED"
 
 class Country(BaseModel):
     code: str
@@ -59,7 +107,7 @@ class Info(BaseModel):
 
 class Actor_Info(BaseModel):
     id: str
-    type: str
+    type: ActorTypeEnum
     info: Info
 
 class AdditionalDesc(BaseModel):
@@ -67,16 +115,17 @@ class AdditionalDesc(BaseModel):
     url: Optional[str] = None
 
 class Description(BaseModel):
-    code: str
+    code: str #category (iska enum banana chahiye ya nahi)
     short_desc: str
     long_desc: str
     additional_desc: Optional[AdditionalDesc] = None
     images: Optional[List[HttpUrl]] = []
 
 class ActionDescription(BaseModel):
-    code: str
+    code: ActionDescriptionCodeEnum
     short_desc: Optional[str] = None
     name: Optional[str] = None
+    images: Optional[List[HttpUrl]] = None
 
 class ActorDetails(BaseModel):
     name: str
@@ -85,24 +134,29 @@ class Action(BaseModel):
     id: str
     updated_at: datetime
     action_by: str
-    description: ActionDescription
+    descriptor: ActionDescription
     actor_details: ActorDetails
     ref_id: Optional[str] = None
     ref_type: Optional[str] = None
+
+class ResolutionDescription(BaseModel):
+    code: ResolutionDescriptionCodeEnum
+    short_desc: Optional[str] = None
+    name: Optional[str] = None
 
 class Resolution(BaseModel):
     id: str
     ref_id: str
     ref_type: str
-    descriptor: ActionDescription
+    descriptor: ResolutionDescription
     tags: List[Tag]
     updated_at: datetime
     proposed_by: str
 
 class Issue(BaseModel):
     id: str
-    status: str
-    level: str
+    status: StatusEnum
+    level: LevelEnum
     created_at: datetime
     updated_at: datetime
     source_id: str
@@ -137,8 +191,13 @@ class OnIssueReq(BaseModel):
     error: Optional[Error] = None
 
 #Response
+
+class AckEnum(str, Enum):
+    Ack = "Ack"
+    Nack = "Nack"
+
 class Ack(BaseModel):
-    status: str
+    status: AckEnum
 
 class MessageAck(BaseModel):
     ack: Ack

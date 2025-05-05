@@ -1,42 +1,30 @@
 from fastapi import FastAPI
-from schemas.onissueschema import Ack, ErrorRes, MessageAck, OnIssueResponse, OnIssueReq
+from dotenv import load_dotenv
+from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
+from config.database import connect_to_mongo, close_mongo
+from urls.test import router as test_router
+from urls.issue import router as issue_router
 
-app = FastAPI()
+load_dotenv()
 
-@app.post("/onissue", response_model=OnIssueResponse)
-def handle_on_issue(payload: OnIssueReq, ack: bool = True):
-    if ack:
-        return OnIssueResponse(
-            message=MessageAck(
-                ack=Ack(status="ACK")
-            )
-        )
-    else:
-        return OnIssueResponse(
-            message=MessageAck(
-                ack=Ack(status="NACK")
-            ),
-            error=ErrorRes(
-                code="40000",
-                message="Some error occurred during processing."
-            )
-        )
-    
-@app.post("/onissuestatus", response_model=OnIssueResponse)
-def handle_on_issue_status(payload: OnIssueReq, ack: bool = True):
-    if ack:
-        return OnIssueResponse(
-            message=MessageAck(
-                ack=Ack(status="ACK")
-            )
-        )
-    else:
-        return OnIssueResponse(
-            message=MessageAck(
-                ack=Ack(status="NACK")
-            ),
-            error=ErrorRes(
-                code="40000",
-                message="Some error occurred during processing."
-            )
-        )
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    app.mongodb_client, app.mongodb = await connect_to_mongo()
+    print("Mongodb connected")
+    yield
+    await close_mongo(app.mongodb_client)
+    print("Mongodb disconnected")
+
+app = FastAPI(lifespan = lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins = ["*"],
+    allow_credentials = True,
+    allow_methods = ["*"],
+    allow_headers = ["*"]
+)
+
+app.include_router(test_router)
+app.include_router(issue_router)
