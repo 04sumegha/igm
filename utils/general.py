@@ -12,7 +12,7 @@ def failed_response_handler(status_code: int, detail: str):
         }
     )
 
-def success_response_handler(status_code: int, detail: str, data: dict):
+def success_response_handler(status_code: int, detail: str, data: dict = {}):
     return JSONResponse(
         status_code = status_code,
         content = {

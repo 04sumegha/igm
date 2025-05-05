@@ -1,5 +1,6 @@
 from bson import ObjectId
-from fastapi import HTTPException, Request
+from fastapi import Request
+from fastapi.encoders import jsonable_encoder
 import logging
 import uuid
 from datetime import datetime, timezone
@@ -7,6 +8,7 @@ from models.issue import Issue
 from schemas.createissueschema import CreateIssueReq
 from schemas.updateissueschema import UpdateIssueReq
 from utils.pagination import pagination
+from utils.general import failed_response_handler, success_response_handler
 
 async def create_issue(payload: CreateIssueReq, request: Request):
     try:
@@ -26,7 +28,10 @@ async def create_issue(payload: CreateIssueReq, request: Request):
             },
             "updated_at": datetime.now(timezone.utc).isoformat(timespec='milliseconds').replace('+00:00', 'Z'),
             "action_by": payload.complainant_id,
-            "actor_details": {"name": payload.actor_name},
+            "actor_details": {
+                "userId": payload.source_id,
+                "name": payload.actor_name
+            },
             "ref_id": payload.ref_id,
             "ref_type": payload.ref_type
         }
@@ -47,15 +52,14 @@ async def create_issue(payload: CreateIssueReq, request: Request):
 
         result = await issue_collection.insert_one(issue_model.model_dump())
 
-        return {
-            "message": "Issue created successfully",
-            "network_issue_id": network_issue_id,
+        return success_response_handler(status_code = 201, detail = "Issue created successfully", data = {
+            "network_issue_id": str(network_issue_id),
             "issue_id": str(result.inserted_id)
-        }
+        })
 
     except Exception as e:
         logging.error(f"Error in creating issue: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        return failed_response_handler(status_code = 500, detail = "Internal server error")
     
 def serialize_issue(issue):
     issue["_id"] = str(issue["_id"])
@@ -71,14 +75,11 @@ async def get_all_issues(userId: str, request: Request, offset: int = 1, limit: 
         paginated_issues = pagination(limit = limit, offset = offset, data = all_issues)
         paginated_issues_serial = [serialize_issue(issue) for issue in paginated_issues]
 
-        return{
-            "message": "Issues fetched successfully",
-            "data": paginated_issues_serial
-        }
+        return success_response_handler(status_code = 200, detail = "Issues fetched successfully", data = jsonable_encoder(paginated_issues_serial))
 
     except Exception as e:
         logging.error(f"Error getting all the issues for a user: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        return failed_response_handler(status_code = 500, detail = "Internal server error")
     
 async def get_issue(userId: str, issueId: str, request: Request):
     try:
@@ -91,18 +92,15 @@ async def get_issue(userId: str, issueId: str, request: Request):
         })
 
         if not issue:
-            raise HTTPException(status_code = 404, detail = "Issue not found with this id")
+            return failed_response_handler(status_code = 404, detail = "Issue not found with this id")
         
-        serialize_issue(issue)
-        
-        return{
-            "message": "Issue fetched successfully",
-            "data": issue
-        }
+        issue = serialize_issue(issue)
+
+        return success_response_handler(status_code = 200, detail = "Issue fetched successfully", data = jsonable_encoder(issue))
 
     except Exception as e:
         logging.error(f"Error getting the issue: {e}")
-        raise HTTPException(status_code = 500, detail = "Internal server error")
+        return failed_response_handler(status_code = 500, detail = "Internal server error")
     
 async def update_issue(issueId: str, userId: str, payload: UpdateIssueReq, request: Request):
     try:
@@ -115,7 +113,7 @@ async def update_issue(issueId: str, userId: str, payload: UpdateIssueReq, reque
         })
 
         if not issue:
-            raise HTTPException(status_code = 404, detail = "Issue not found with this id")
+            return failed_response_handler(status_code = 404, detail = "Issue not found with this id")
 
         update_fields = {}
         if payload.status:
@@ -126,7 +124,7 @@ async def update_issue(issueId: str, userId: str, payload: UpdateIssueReq, reque
             level_order = {"ISSUE": 1, "GRIEVANCE": 2, "DISPUTE": 3}
             old_level = issue["level"]
             if level_order[payload.level] < level_order[old_level]:
-                raise HTTPException(status_code=400, detail="Cannot downgrade the issue level")
+                return failed_response_handler(status_code = 400, detail = "Cannot downgrade the issue level")
             
             update_fields["level"] = payload.level
             
@@ -136,7 +134,7 @@ async def update_issue(issueId: str, userId: str, payload: UpdateIssueReq, reque
                 update_fields["expected_resolution_time"] = "P28D"
 
         if not update_fields:
-            raise HTTPException(status_code=400, detail="No fields provided for update")
+            return failed_response_handler(status_code = 400, detail = "No fields provided for update")
         
         descriptor = {
             "code": payload.action_type,
@@ -150,12 +148,15 @@ async def update_issue(issueId: str, userId: str, payload: UpdateIssueReq, reque
             "descriptor": descriptor,
             "updated_at": datetime.now(timezone.utc).isoformat(timespec='milliseconds').replace('+00:00', 'Z'),
             "action_by": payload.complainant_id,
-            "actor_details": {"name": payload.actor_name},
+            "actor_details": {
+                "userId": userId,
+                "name": payload.actor_name
+            },
             "ref_id": payload.ref_id,
             "ref_type": payload.ref_type
         }
         
-        await issue_collection.update_one(
+        updated_issue = await issue_collection.update_one(
             {"_id": ObjectId(issueId)},
             {
                 "$set": update_fields,
@@ -163,8 +164,8 @@ async def update_issue(issueId: str, userId: str, payload: UpdateIssueReq, reque
             }
         )
 
-        return {"message": "Issue updated successfully"}
+        return success_response_handler(status_code = 200, detail = "Issue updated successfully")
 
     except Exception as e:
         logging.error(f"Error in updating issue: {e}")
-        raise HTTPException(status_code = 500, detail = "Internal server error")
+        return failed_response_handler(status_code = 500, detail = "Internal server error")

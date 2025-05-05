@@ -17,6 +17,7 @@ class ActionDescription(BaseModel):
     images: Optional[List[HttpUrl]] = None
 
 class ActorDetail(BaseModel):
+    userId: str
     name: str
 
 class Actions(BaseModel):
