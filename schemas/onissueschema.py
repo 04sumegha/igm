@@ -1,7 +1,8 @@
-from enum import Enum
-from pydantic import BaseModel, EmailStr, HttpUrl
-from typing import Optional, List
 from datetime import datetime
+from enum import Enum
+from typing import List, Optional
+
+from pydantic import BaseModel, EmailStr, HttpUrl
 
 #ENUMS
 class StatusEnum(str, Enum):

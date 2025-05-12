@@ -1,6 +1,8 @@
-from pydantic import BaseModel, EmailStr, HttpUrl
-from typing import Any, Dict, List, Optional
 from datetime import datetime
+from typing import List, Optional
+
+from pydantic import BaseModel, EmailStr, HttpUrl
+
 from models.base import Base
 
 class Description(BaseModel):

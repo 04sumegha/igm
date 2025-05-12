@@ -1,10 +1,13 @@
-from fastapi import FastAPI
-from dotenv import load_dotenv
-from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-from config.database import connect_to_mongo, close_mongo
-from urls.test import router as test_router
+
+from dotenv import load_dotenv
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from config.database import close_mongo, connect_to_mongo
 from urls.issue import router as issue_router
+from urls.test import router as test_router
+from utils.cache import cache_manager
 
 load_dotenv()
 
@@ -12,7 +15,9 @@ load_dotenv()
 async def lifespan(app: FastAPI):
     app.mongodb_client, app.mongodb = await connect_to_mongo()
     print("Mongodb connected")
+    await cache_manager.initialize()
     yield
+    await cache_manager.redis.close()
     await close_mongo(app.mongodb_client)
     print("Mongodb disconnected")
 

@@ -1,7 +1,8 @@
-from pydantic import BaseModel, HttpUrl
-from typing import List, Optional
 from datetime import datetime
 from enum import Enum
+from typing import List, Optional
+
+from pydantic import BaseModel, HttpUrl
 
 class StatusEnum(str, Enum):
     Open = "OPEN"
